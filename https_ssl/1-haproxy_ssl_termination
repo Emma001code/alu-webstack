@@ -35,18 +35,21 @@ defaults
 
 frontend http_front
     bind *:80
-    reqadd X-Forwarded-Proto:\ http
-    default_backend http_back
+    # Permanent redirect to HTTPS
     redirect scheme https code 301 if !{ ssl_fc }
 
 frontend https_front
     bind *:443 ssl crt /etc/haproxy/certs/www.realemmanuel.tech.pem
-    reqadd X-Forwarded-Proto:\ https
+    # Security headers
+    http-response set-header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    http-response set-header X-Content-Type-Options nosniff
+    http-response set-header X-Frame-Options DENY
+    # Forward protocol and port to backend
+    http-request set-header X-Forwarded-Port %[dst_port]
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
     default_backend http_back
 
 backend http_back
     balance roundrobin
     server web-01 18.204.210.42:80 check
     server web-02 52.87.183.51:80 check
-    http-request set-header X-Forwarded-Port %[dst_port]
-    http-request add-header X-Forwarded-Proto https if { ssl_fc }
